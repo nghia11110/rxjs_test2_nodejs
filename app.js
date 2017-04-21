@@ -5,8 +5,21 @@ const Router = require('router');
 const finalhandler = require('finalhandler');
 const view = require('consolidate');
 const path = require('path');
+const serveStatic = require('serve-static');
+const got = require('got');
+const Rx = require('rx');
 
 const app = new Router();
+
+app.use(
+	serveStatic(
+		path.join(__dirname,'public'),
+		{
+			maxAge: '1d'
+		}
+	)
+);
+
 
 app.use((req,res,next) => {
 	res.render = function render(filename,params) {
@@ -25,18 +38,33 @@ app.use((req,res,next) => {
 });
 
 app.get('/',(req,res) => {
-	let user_data = [
-						{
-					    "name": "mojombo",
-					    "id": 1,
-					    "avatar_url": "https://avatars3.githubusercontent.com/u/1?v=3",
-					  	},
-					 	{
-					    "name": "defunkt",
-					    "id": 2,
-					    "avatar_url": "https://avatars3.githubusercontent.com/u/2?v=3",
-					  	},
-					];
+	let requestStream = Rx.Observable.just('https://api.github.com/users');
+	requestStream.subscribe(function(url) {
+		let responseStream = Rx.Observable.create(function(obserer) {
+			got('todomvc.com')
+			    .done(response => {
+			        obserer.next(response.body);
+			    })
+			    .fail(error => {
+			        obserer.error(error.response.body);
+			    })
+			    .always(function() {
+					observer.complete();
+			    });
+		});
+		responseStream.subscribe({
+			function (x) {
+				console.log('Next: %s', x);
+			},
+			function (err) {
+				console.log('Error: %s', err);
+			},
+			function () {
+				console.log('Completed');
+			}
+		});
+	});
+	let user_data = [];
 	res.render('home.html',{
 		userData : user_data
 	});
