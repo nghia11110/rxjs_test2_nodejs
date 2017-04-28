@@ -38,35 +38,18 @@ app.use((req,res,next) => {
 });
 
 app.get('/',(req,res) => {
+	var user_data;
 	let requestStream = Rx.Observable.just('https://api.github.com/users');
-	requestStream.subscribe(function(url) {
-		let responseStream = Rx.Observable.create(function(obserer) {
-			got('todomvc.com')
-			    .done(response => {
-			        obserer.next(response.body);
-			    })
-			    .fail(error => {
-			        obserer.error(error.response.body);
-			    })
-			    .always(function() {
-					observer.complete();
-			    });
-		});
-		responseStream.subscribe({
-			function (x) {
-				console.log('Next: %s', x);
-			},
-			function (err) {
-				console.log('Error: %s', err);
-			},
-			function () {
-				console.log('Completed');
-			}
-		});
+	let responseStream = requestStream.flatMap(function(url) {
+		return Rx.Observable.fromPromise(got(url));
 	});
-	let user_data = [];
-	res.render('home.html',{
-		userData : user_data
+	responseStream.subscribe(function(x) {
+		user_data = JSON.parse(x.body);
+		user_data = user_data.slice(0, 3);
+		//console.log(user_data);
+		res.render('home.html',{
+			userData : user_data
+		});
 	});
 });
 
